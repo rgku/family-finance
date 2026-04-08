@@ -2,9 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { useStore } from "@/store/useStore";
-import { useAuth } from "@/contexts/AuthContext";
 import { createClient } from "@/lib/supabase";
-import { Plus, TrendingUp, TrendingDown, Target, LogOut, X } from "lucide-react";
+import { Plus, TrendingUp, TrendingDown, Target, X } from "lucide-react";
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from "recharts";
 import { motion, AnimatePresence } from "framer-motion";
 import type { TransactionType } from "@/types";
@@ -12,7 +11,6 @@ import type { TransactionType } from "@/types";
 const COLORS = ["#10B981", "#3B82F6", "#8B5CF6", "#EF4444", "#F59E0B", "#EC4899", "#22C55E", "#6B7280"];
 
 export default function DashboardContent() {
-  const { user } = useAuth();
   const { transactions, categories, goals, fetchTransactions, fetchCategories, fetchGoals, addTransaction, subscribeToRealtime } = useStore();
   const [showAddModal, setShowAddModal] = useState(false);
   const [newTransaction, setNewTransaction] = useState({ amount: "", description: "", category_id: "", type: "expense" as TransactionType });
@@ -55,10 +53,10 @@ export default function DashboardContent() {
 
   const handleAddTransaction = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!user || !newTransaction.category_id) return;
+    if (!newTransaction.category_id) return;
 
     await addTransaction({
-      user_id: user.id,
+      user_id: "demo-user",
       category_id: newTransaction.category_id,
       amount: Number(newTransaction.amount),
       description: newTransaction.description,
@@ -77,9 +75,6 @@ export default function DashboardContent() {
       <header className="bg-slate-800/50 backdrop-blur-xl border-b border-slate-700/50 sticky top-0 z-10">
         <div className="max-w-md mx-auto px-4 py-4 flex justify-between items-center">
           <h1 className="text-xl font-bold">Family Finance</h1>
-          <button onClick={() => supabase.auth.signOut()} className="p-2 hover:bg-slate-700 rounded-lg">
-            <LogOut className="w-5 h-5" />
-          </button>
         </div>
       </header>
 
