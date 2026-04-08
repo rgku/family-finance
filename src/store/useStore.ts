@@ -20,8 +20,12 @@ interface AppState {
   deleteTransaction: (id: string) => Promise<void>;
   
   addCategory: (category: Omit<Category, "id" | "created_at">) => Promise<void>;
-  updateGoal: (id: string, currentAmount: number) => Promise<void>;
+  updateCategory: (id: string, updates: Partial<Category>) => Promise<void>;
+  deleteCategory: (id: string) => Promise<void>;
+  
   addGoal: (goal: Omit<Goal, "id" | "created_at" | "current_amount">) => Promise<void>;
+  updateGoal: (id: string, currentAmount: number) => Promise<void>;
+  deleteGoal: (id: string) => Promise<void>;
   
   subscribeToRealtime: () => () => void;
 }
@@ -45,6 +49,11 @@ const demoTransactions: Transaction[] = [
   { id: "3", user_id: "demo", category_id: "7", amount: 1500.00, description: "Salário", date: new Date().toISOString(), type: "income", created_at: "" },
 ];
 
+const demoGoals: Goal[] = [
+  { id: "1", family_id: "demo", name: "Férias", target_amount: 2000, current_amount: 500, deadline: new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString(), created_at: "" },
+  { id: "2", family_id: "demo", name: "Fundo de Emergência", target_amount: 5000, current_amount: 1500, deadline: null, created_at: "" },
+];
+
 export const useStore = create<AppState>((set, get) => ({
   transactions: [],
   categories: [],
@@ -61,7 +70,6 @@ export const useStore = create<AppState>((set, get) => ({
       .order("date", { ascending: false });
     
     if (error) {
-      console.log("Using demo transactions");
       set({ transactions: demoTransactions, loading: false });
     } else if (data && data.length > 0) {
       set({ transactions: data, loading: false });
@@ -77,7 +85,6 @@ export const useStore = create<AppState>((set, get) => ({
       .order("name");
     
     if (error || !data || data.length === 0) {
-      console.log("Using demo categories");
       set({ categories: demoCategories });
     } else {
       set({ categories: data });
@@ -92,6 +99,9 @@ export const useStore = create<AppState>((set, get) => ({
     
     if (!error) {
       set({ goals: data || [] });
+    }
+    if (error || !data || data.length === 0) {
+      set({ goals: demoGoals });
     }
   },
 
@@ -120,7 +130,6 @@ export const useStore = create<AppState>((set, get) => ({
   addTransaction: async (transaction) => {
     const { error } = await supabase.from("transactions").insert([transaction]);
     if (error) {
-      console.log("Demo mode - adding locally");
       const newTransaction = { ...transaction, id: Math.random().toString(), created_at: new Date().toISOString() };
       set((state) => ({ transactions: [newTransaction, ...state.transactions] }));
     }
@@ -133,21 +142,60 @@ export const useStore = create<AppState>((set, get) => ({
       .eq("id", id);
     
     if (error) {
-      set({ error: error.message });
+      set((state) => ({
+        transactions: state.transactions.map((t) =>
+          t.id === id ? { ...t, ...updates } : t
+        ),
+      }));
     }
   },
 
   deleteTransaction: async (id) => {
     const { error } = await supabase.from("transactions").delete().eq("id", id);
     if (error) {
-      set({ error: error.message });
+      set((state) => ({
+        transactions: state.transactions.filter((t) => t.id !== id),
+      }));
     }
   },
 
   addCategory: async (category) => {
     const { error } = await supabase.from("categories").insert([category]);
     if (error) {
-      set({ error: error.message });
+      const newCategory = { ...category, id: Math.random().toString(), created_at: new Date().toISOString() };
+      set((state) => ({ categories: [...state.categories, newCategory] }));
+    }
+  },
+
+  updateCategory: async (id, updates) => {
+    const { error } = await supabase
+      .from("categories")
+      .update(updates)
+      .eq("id", id);
+    
+    if (error) {
+      set((state) => ({
+        categories: state.categories.map((c) =>
+          c.id === id ? { ...c, ...updates } : c
+        ),
+      }));
+    }
+  },
+
+  deleteCategory: async (id) => {
+    const { error } = await supabase.from("categories").delete().eq("id", id);
+    if (error) {
+      set((state) => ({
+        categories: state.categories.filter((c) => c.id !== id),
+      }));
+    }
+  },
+
+  addGoal: async (goal) => {
+    const { error } = await supabase.from("goals").insert([goal]);
+    if (error) {
+      const newGoal = { ...goal, id: Math.random().toString(), current_amount: 0, created_at: new Date().toISOString() };
+      set((state) => ({ goals: [newGoal, ...state.goals] }));
     }
   },
 
@@ -158,14 +206,20 @@ export const useStore = create<AppState>((set, get) => ({
       .eq("id", id);
     
     if (error) {
-      set({ error: error.message });
+      set((state) => ({
+        goals: state.goals.map((g) =>
+          g.id === id ? { ...g, current_amount: currentAmount } : g
+        ),
+      }));
     }
   },
 
-  addGoal: async (goal) => {
-    const { error } = await supabase.from("goals").insert([goal]);
+  deleteGoal: async (id) => {
+    const { error } = await supabase.from("goals").delete().eq("id", id);
     if (error) {
-      set({ error: error.message });
+      set((state) => ({
+        goals: state.goals.filter((g) => g.id !== id),
+      }));
     }
   },
 

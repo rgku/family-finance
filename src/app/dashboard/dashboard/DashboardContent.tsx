@@ -3,10 +3,11 @@
 import { useEffect, useState } from "react";
 import { useStore } from "@/store/useStore";
 import { createClient } from "@/lib/supabase";
-import { Plus, TrendingUp, TrendingDown, Target, X, Edit2, Trash2, ChevronLeft, ChevronRight } from "lucide-react";
+import { Plus, TrendingUp, TrendingDown, Target, X, Edit2, Trash2, ChevronLeft, ChevronRight, Download, Settings, AlertTriangle } from "lucide-react";
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from "recharts";
 import { motion, AnimatePresence } from "framer-motion";
 import type { TransactionType } from "@/types";
+import Link from "next/link";
 
 const COLORS = ["#10B981", "#3B82F6", "#8B5CF6", "#EF4444", "#F59E0B", "#EC4899", "#22C55E", "#6B7280"];
 
@@ -19,7 +20,8 @@ export default function DashboardContent() {
   const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth());
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
   const [editingTransaction, setEditingTransaction] = useState<any>(null);
-  const [newTransaction, setNewTransaction] = useState({ amount: "", description: "", category_id: "", type: "expense" as TransactionType });
+  const [newTransaction, setNewTransaction] = useState({ amount: "", description: "", category_id: "", type: "expense" as TransactionType, goal_id: "" });
+  const [showExportMenu, setShowExportMenu] = useState(false);
   const supabase = createClient();
 
   useEffect(() => {
@@ -50,25 +52,41 @@ export default function DashboardContent() {
       const total = filteredTransactions
         .filter((t) => t.type === "expense" && t.category_id === cat.id)
         .reduce((sum, t) => sum + Number(t.amount), 0);
-      return { name: cat.name, value: total, color: cat.color };
+      return { name: cat.name, value: total, color: cat.color, budget_limit: cat.budget_limit };
     })
     .filter((c) => c.value > 0);
+
+  const budgetAlerts = expenseByCategory.filter((cat) => {
+    if (!cat.budget_limit || cat.budget_limit <= 0) return false;
+    return (cat.value / cat.budget_limit) >= 0.8;
+  });
 
   const handleAddTransaction = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newTransaction.category_id) return;
 
-    await addTransaction({
+    const transaction = {
       user_id: "demo-user",
       category_id: newTransaction.category_id,
       amount: Number(newTransaction.amount),
       description: newTransaction.description,
       type: newTransaction.type,
       date: new Date(selectedYear, selectedMonth, new Date().getDate()).toISOString(),
-    });
+    };
+
+    await addTransaction(transaction);
+
+    if (newTransaction.goal_id && newTransaction.type === "income") {
+      const goal = goals.find((g) => g.id === newTransaction.goal_id);
+      if (goal) {
+        const newAmount = Number(goal.current_amount) + Number(newTransaction.amount);
+        const { updateGoal } = useStore.getState();
+        await updateGoal(newTransaction.goal_id, newAmount);
+      }
+    }
 
     setShowAddModal(false);
-    setNewTransaction({ amount: "", description: "", category_id: "", type: "expense" });
+    setNewTransaction({ amount: "", description: "", category_id: "", type: "expense", goal_id: "" });
   };
 
   const handleEditTransaction = async (e: React.FormEvent) => {
@@ -117,13 +135,90 @@ export default function DashboardContent() {
     setSelectedYear(newYear);
   };
 
+  const exportToPDF = async () => {
+    const { jsPDF } = await import("jspdf");
+    const autoTable = await import("jspdf-autotable");
+
+    const doc = new jsPDF();
+    
+    doc.setFontSize(18);
+    doc.text("Relatório de Transações", 14, 22);
+    doc.setFontSize(12);
+    doc.text(`${MONTHS[selectedMonth]} ${selectedYear}`, 14, 30);
+
+    const tableData = filteredTransactions.map((t) => [
+      new Date(t.date).toLocaleDateString("pt-PT"),
+      t.description || t.category?.name || "-",
+      t.category?.name || "-",
+      t.type === "income" ? `+${Number(t.amount).toFixed(2)}€` : `-${Number(t.amount).toFixed(2)}€`,
+    ]);
+
+    autoTable.default(doc, {
+      startY: 40,
+      head: [["Data", "Descrição", "Categoria", "Valor"]],
+      body: tableData,
+      theme: "striped",
+      headStyles: { fillColor: [59, 130, 246] },
+    });
+
+    doc.save(`transacoes_${MONTHS[selectedMonth]}_${selectedYear}.pdf`);
+    setShowExportMenu(false);
+  };
+
+  const exportToExcel = async () => {
+    const XLSX = await import("xlsx");
+
+    const data = filteredTransactions.map((t) => ({
+      Data: new Date(t.date).toLocaleDateString("pt-PT"),
+      Descrição: t.description || t.category?.name || "-",
+      Categoria: t.category?.name || "-",
+      Tipo: t.type === "income" ? "Receita" : "Despesa",
+      Valor: t.type === "income" ? Number(t.amount) : -Number(t.amount),
+    }));
+
+    const ws = XLSX.utils.json_to_sheet(data);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Transações");
+    XLSX.writeFile(wb, `transacoes_${MONTHS[selectedMonth]}_${selectedYear}.xlsx`);
+    setShowExportMenu(false);
+  };
+
   return (
     <div className="min-h-screen bg-slate-900 text-white">
       <header className="bg-slate-800/50 backdrop-blur-xl border-b border-slate-700/50 sticky top-0 z-10">
         <div className="max-w-md mx-auto px-4 py-4">
-          <h1 className="text-xl font-bold text-center">Family Finance</h1>
+          <div className="flex justify-between items-center mb-3">
+            <h1 className="text-xl font-bold">Family Finance</h1>
+            <div className="flex gap-2">
+              <Link href="/dashboard/settings" className="p-2 hover:bg-slate-700 rounded-lg">
+                <Settings className="w-5 h-5" />
+              </Link>
+              <div className="relative">
+                <button onClick={() => setShowExportMenu(!showExportMenu)} className="p-2 hover:bg-slate-700 rounded-lg">
+                  <Download className="w-5 h-5" />
+                </button>
+                <AnimatePresence>
+                  {showExportMenu && (
+                    <motion.div
+                      initial={{ opacity: 0, y: -10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -10 }}
+                      className="absolute right-0 top-full mt-1 bg-slate-800 rounded-lg shadow-lg border border-slate-700 overflow-hidden z-50"
+                    >
+                      <button onClick={exportToPDF} className="block w-full px-4 py-2 text-left hover:bg-slate-700">
+                        Exportar PDF
+                      </button>
+                      <button onClick={exportToExcel} className="block w-full px-4 py-2 text-left hover:bg-slate-700">
+                        Exportar Excel
+                      </button>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
+            </div>
+          </div>
           
-          <div className="flex items-center justify-center gap-2 mt-3">
+          <div className="flex items-center justify-center gap-2">
             <button onClick={() => changeMonth(-1)} className="p-1 hover:bg-slate-700 rounded">
               <ChevronLeft className="w-5 h-5" />
             </button>
@@ -138,6 +233,22 @@ export default function DashboardContent() {
       </header>
 
       <main className="max-w-md mx-auto px-4 py-6 space-y-6">
+        {budgetAlerts.length > 0 && (
+          <div className="bg-red-500/10 border border-red-500/20 rounded-2xl p-4">
+            <div className="flex items-center gap-2 mb-2">
+              <AlertTriangle className="w-5 h-5 text-red-400" />
+              <h2 className="font-semibold text-red-400">Alertas de Orçamento</h2>
+            </div>
+            <div className="space-y-1">
+              {budgetAlerts.map((cat) => (
+                <p key={cat.name} className="text-sm text-red-300">
+                  {cat.name}: {cat.value.toFixed(2)}€ / {cat.budget_limit}€ ({(cat.budget_limit ? (cat.value / cat.budget_limit * 100).toFixed(0) : 0)}%)
+                </p>
+              ))}
+            </div>
+          </div>
+        )}
+
         <div className="bg-gradient-to-br from-blue-600 to-blue-700 rounded-2xl p-6 shadow-lg shadow-blue-500/20">
           <p className="text-blue-100 text-sm mb-1">Balanço do mês</p>
           <p className="text-3xl font-bold">{balance.toFixed(2)}€</p>
@@ -155,9 +266,14 @@ export default function DashboardContent() {
 
         {goals.length > 0 && (
           <div className="bg-slate-800/50 rounded-2xl p-4">
-            <div className="flex items-center gap-2 mb-3">
-              <Target className="w-5 h-5 text-purple-400" />
-              <h2 className="font-semibold">Metas</h2>
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-2">
+                <Target className="w-5 h-5 text-purple-400" />
+                <h2 className="font-semibold">Metas</h2>
+              </div>
+              <Link href="/dashboard/goals" className="text-blue-400 text-sm hover:text-blue-300">
+                Ver todas
+              </Link>
             </div>
             <div className="space-y-3">
               {goals.slice(0, 3).map((goal) => (
@@ -165,13 +281,13 @@ export default function DashboardContent() {
                   <div className="flex justify-between text-sm mb-1">
                     <span>{goal.name}</span>
                     <span className="text-slate-400">
-                      {goal.current_amount}€ / {goal.target_amount}€
+                      {Number(goal.current_amount).toFixed(0)}€ / {Number(goal.target_amount).toFixed(0)}€
                     </span>
                   </div>
                   <div className="h-2 bg-slate-700 rounded-full overflow-hidden">
                     <div
-                      className="h-full bg-gradient-to-r from-purple-500 to-pink-500 rounded-full transition-all"
-                      style={{ width: `${Math.min((goal.current_amount / goal.target_amount) * 100, 100)}%` }}
+                      className={`h-full rounded-full transition-all ${Number(goal.current_amount) >= Number(goal.target_amount) ? "bg-green-500" : "bg-gradient-to-r from-purple-500 to-pink-500"}`}
+                      style={{ width: `${Math.min((Number(goal.current_amount) / Number(goal.target_amount)) * 100, 100)}%` }}
                     />
                   </div>
                 </div>
@@ -267,7 +383,7 @@ export default function DashboardContent() {
               initial={{ y: "100%" }}
               animate={{ y: 0 }}
               exit={{ y: "100%" }}
-              className="w-full bg-slate-800 rounded-t-2xl p-6"
+              className="w-full bg-slate-800 rounded-t-2xl p-6 max-h-[90vh] overflow-y-auto"
               onClick={(e) => e.stopPropagation()}
             >
               <div className="flex justify-between items-center mb-6">
@@ -281,7 +397,7 @@ export default function DashboardContent() {
                 <div className="flex gap-2 mb-4">
                   <button
                     type="button"
-                    onClick={() => setNewTransaction({ ...newTransaction, type: "expense" })}
+                    onClick={() => setNewTransaction({ ...newTransaction, type: "expense", goal_id: "" })}
                     className={`flex-1 py-2 rounded-lg font-medium ${newTransaction.type === "expense" ? "bg-red-500 text-white" : "bg-slate-700 text-slate-300"}`}
                   >
                     Despesa
@@ -324,6 +440,19 @@ export default function DashboardContent() {
                     <option key={cat.id} value={cat.id}>{cat.name}</option>
                   ))}
                 </select>
+
+                {newTransaction.type === "income" && goals.length > 0 && (
+                  <select
+                    value={newTransaction.goal_id}
+                    onChange={(e) => setNewTransaction({ ...newTransaction, goal_id: e.target.value })}
+                    className="w-full p-3 bg-slate-700 border border-slate-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="">Contribuir para meta (opcional)</option>
+                    {goals.filter(g => Number(g.current_amount) < Number(g.target_amount)).map((goal) => (
+                      <option key={goal.id} value={goal.id}>{goal.name}</option>
+                    ))}
+                  </select>
+                )}
 
                 <button
                   type="submit"
