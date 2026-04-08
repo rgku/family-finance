@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useStore } from "@/store/useStore";
-import { Plus, TrendingUp, TrendingDown, Target, Download, Settings, Home, CreditCard, PieChart, ChevronLeft, ChevronRight, AlertTriangle } from "lucide-react";
+import { Plus, TrendingUp, TrendingDown, Target, Download, Settings, Home, CreditCard, PieChart, ChevronLeft, ChevronRight, AlertTriangle, Edit2, Trash2 } from "lucide-react";
 import { PieChart as RechartsPie, Pie, Cell, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip } from "recharts";
 import { motion, AnimatePresence } from "framer-motion";
 import Link from "next/link";
@@ -16,14 +16,15 @@ interface DesktopDashboardProps {
 }
 
 export default function DesktopDashboard({ isMobile }: DesktopDashboardProps) {
-  const { transactions, categories, goals, fetchTransactions, fetchCategories, fetchGoals, addTransaction, subscribeToRealtime } = useStore();
+  const { transactions, categories, goals, fetchTransactions, fetchCategories, fetchGoals, addTransaction, deleteTransaction, updateTransaction, subscribeToRealtime } = useStore();
   const [activePage, setActivePage] = useState<"dashboard" | "transactions" | "goals" | "settings">("dashboard");
   const [showExportMenu, setShowExportMenu] = useState(false);
   const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth());
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
-  const [newTransaction, setNewTransaction] = useState({ amount: "", category_id: "", type: "expense" as TransactionType });
+  const [newTransaction, setNewTransaction] = useState({ amount: "", category_id: "", type: "expense" as TransactionType, description: "" });
   const [showSuccess, setShowSuccess] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
+  const [editingTransaction, setEditingTransaction] = useState<any>(null);
 
   useEffect(() => {
     fetchTransactions();
@@ -75,14 +76,32 @@ export default function DesktopDashboard({ isMobile }: DesktopDashboardProps) {
       user_id: "demo-user",
       category_id: newTransaction.category_id,
       amount: Number(newTransaction.amount),
-      description: "",
+      description: newTransaction.description || "",
       type: newTransaction.type,
       date: new Date(selectedYear, selectedMonth, new Date().getDate()).toISOString(),
     });
     setShowSuccess(true);
     setTimeout(() => setShowSuccess(false), 1500);
-    setNewTransaction({ amount: "", category_id: "", type: "expense" });
+    setNewTransaction({ amount: "", category_id: "", type: "expense", description: "" });
     setShowAddModal(false);
+  };
+
+  const handleDeleteTransaction = async (id: string) => {
+    if (confirm("Tens a certeza que queres eliminar esta transação?")) {
+      await deleteTransaction(id);
+    }
+  };
+
+  const handleUpdateTransaction = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingTransaction) return;
+    await updateTransaction(editingTransaction.id, {
+      amount: Number(editingTransaction.amount),
+      category_id: editingTransaction.category_id,
+      description: editingTransaction.description || "",
+      type: editingTransaction.type,
+    });
+    setEditingTransaction(null);
   };
 
   const changeMonth = (delta: number) => {
@@ -286,13 +305,21 @@ export default function DesktopDashboard({ isMobile }: DesktopDashboardProps) {
               ) : (
                 filteredTransactions.map((t) => (
                   <div key={t.id} className="flex justify-between items-center py-3 border-b border-slate-700/50 last:border-0">
-                    <div>
+                    <div className="flex-1">
                       <p className="font-medium">{t.description || t.category?.name || "Sem descrição"}</p>
                       <p className="text-sm text-slate-400">{new Date(t.date).toLocaleDateString("pt-PT")}</p>
                     </div>
-                    <span className={`text-lg font-bold ${t.type === "income" ? "text-green-400" : "text-red-400"}`}>
-                      {t.type === "income" ? "+" : "-"}{Number(t.amount).toFixed(2)}€
-                    </span>
+                    <div className="flex items-center gap-3">
+                      <span className={`text-lg font-bold ${t.type === "income" ? "text-green-400" : "text-red-400"}`}>
+                        {t.type === "income" ? "+" : "-"}{Number(t.amount).toFixed(2)}€
+                      </span>
+                      <button onClick={() => setEditingTransaction({ ...t, amount: t.amount.toString() })} className="p-1 hover:bg-slate-700 rounded">
+                        <Edit2 className="w-4 h-4 text-slate-400" />
+                      </button>
+                      <button onClick={() => handleDeleteTransaction(t.id)} className="p-1 hover:bg-slate-700 rounded">
+                        <Trash2 className="w-4 h-4 text-red-400" />
+                      </button>
+                    </div>
                   </div>
                 ))
               )}
@@ -349,7 +376,32 @@ export default function DesktopDashboard({ isMobile }: DesktopDashboardProps) {
                   <button type="button" onClick={() => setNewTransaction({ ...newTransaction, type: "income" })} className={`flex-1 py-3 rounded-xl font-medium ${newTransaction.type === "income" ? "bg-green-500 text-white" : "bg-slate-700 text-slate-300"}`}>Receita</button>
                 </div>
                 <input type="number" step="0.01" placeholder="0,00€" value={newTransaction.amount} onChange={(e) => setNewTransaction({ ...newTransaction, amount: e.target.value })} className="w-full p-4 bg-slate-700 border border-slate-600 rounded-xl text-center text-2xl font-bold" required />
+                <input type="text" placeholder="Descrição (opcional)" value={newTransaction.description || ""} onChange={(e) => setNewTransaction({ ...newTransaction, description: e.target.value })} className="w-full p-3 bg-slate-700 border border-slate-600 rounded-xl" />
                 <select value={newTransaction.category_id} onChange={(e) => setNewTransaction({ ...newTransaction, category_id: e.target.value })} className="w-full p-3 bg-slate-700 border border-slate-600 rounded-xl" required>
+                  <option value="">Selecionar categoria</option>
+                  {categories.map((cat) => (<option key={cat.id} value={cat.id}>{cat.name}</option>))}
+                </select>
+                <button type="submit" className="w-full py-4 bg-blue-600 hover:bg-blue-700 rounded-xl font-bold">Guardar</button>
+              </form>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Edit Transaction Modal */}
+      <AnimatePresence>
+        {editingTransaction && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center" onClick={() => setEditingTransaction(null)}>
+            <motion.div initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.95, opacity: 0 }} className="w-full max-w-md bg-slate-800 rounded-2xl p-6" onClick={(e) => e.stopPropagation()}>
+              <h2 className="text-xl font-bold mb-6">Editar Transação</h2>
+              <form onSubmit={handleUpdateTransaction} className="space-y-4">
+                <div className="flex gap-2">
+                  <button type="button" onClick={() => setEditingTransaction({ ...editingTransaction, type: "expense" })} className={`flex-1 py-3 rounded-xl font-medium ${editingTransaction.type === "expense" ? "bg-red-500 text-white" : "bg-slate-700 text-slate-300"}`}>Despesa</button>
+                  <button type="button" onClick={() => setEditingTransaction({ ...editingTransaction, type: "income" })} className={`flex-1 py-3 rounded-xl font-medium ${editingTransaction.type === "income" ? "bg-green-500 text-white" : "bg-slate-700 text-slate-300"}`}>Receita</button>
+                </div>
+                <input type="number" step="0.01" placeholder="0,00€" value={editingTransaction.amount} onChange={(e) => setEditingTransaction({ ...editingTransaction, amount: e.target.value })} className="w-full p-4 bg-slate-700 border border-slate-600 rounded-xl text-center text-2xl font-bold" required />
+                <input type="text" placeholder="Descrição (opcional)" value={editingTransaction.description || ""} onChange={(e) => setEditingTransaction({ ...editingTransaction, description: e.target.value })} className="w-full p-3 bg-slate-700 border border-slate-600 rounded-xl" />
+                <select value={editingTransaction.category_id} onChange={(e) => setEditingTransaction({ ...editingTransaction, category_id: e.target.value })} className="w-full p-3 bg-slate-700 border border-slate-600 rounded-xl" required>
                   <option value="">Selecionar categoria</option>
                   {categories.map((cat) => (<option key={cat.id} value={cat.id}>{cat.name}</option>))}
                 </select>
