@@ -3,16 +3,22 @@
 import { useEffect, useState } from "react";
 import { useStore } from "@/store/useStore";
 import { createClient } from "@/lib/supabase";
-import { Plus, TrendingUp, TrendingDown, Target, X } from "lucide-react";
+import { Plus, TrendingUp, TrendingDown, Target, X, Edit2, Trash2, ChevronLeft, ChevronRight } from "lucide-react";
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from "recharts";
 import { motion, AnimatePresence } from "framer-motion";
 import type { TransactionType } from "@/types";
 
 const COLORS = ["#10B981", "#3B82F6", "#8B5CF6", "#EF4444", "#F59E0B", "#EC4899", "#22C55E", "#6B7280"];
 
+const MONTHS = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
+
 export default function DashboardContent() {
-  const { transactions, categories, goals, fetchTransactions, fetchCategories, fetchGoals, addTransaction, subscribeToRealtime } = useStore();
+  const { transactions, categories, goals, fetchTransactions, fetchCategories, fetchGoals, addTransaction, deleteTransaction, updateTransaction, subscribeToRealtime } = useStore();
   const [showAddModal, setShowAddModal] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth());
+  const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
+  const [editingTransaction, setEditingTransaction] = useState<any>(null);
   const [newTransaction, setNewTransaction] = useState({ amount: "", description: "", category_id: "", type: "expense" as TransactionType });
   const supabase = createClient();
 
@@ -24,19 +30,16 @@ export default function DashboardContent() {
     return () => unsubscribe();
   }, []);
 
-  const currentMonth = new Date().getMonth();
-  const currentYear = new Date().getFullYear();
-
-  const monthlyTransactions = transactions.filter((t) => {
+  const filteredTransactions = transactions.filter((t) => {
     const date = new Date(t.date);
-    return date.getMonth() === currentMonth && date.getFullYear() === currentYear;
+    return date.getMonth() === selectedMonth && date.getFullYear() === selectedYear;
   });
 
-  const totalIncome = monthlyTransactions
+  const totalIncome = filteredTransactions
     .filter((t) => t.type === "income")
     .reduce((sum, t) => sum + Number(t.amount), 0);
 
-  const totalExpense = monthlyTransactions
+  const totalExpense = filteredTransactions
     .filter((t) => t.type === "expense")
     .reduce((sum, t) => sum + Number(t.amount), 0);
 
@@ -44,7 +47,7 @@ export default function DashboardContent() {
 
   const expenseByCategory = categories
     .map((cat) => {
-      const total = monthlyTransactions
+      const total = filteredTransactions
         .filter((t) => t.type === "expense" && t.category_id === cat.id)
         .reduce((sum, t) => sum + Number(t.amount), 0);
       return { name: cat.name, value: total, color: cat.color };
@@ -61,20 +64,76 @@ export default function DashboardContent() {
       amount: Number(newTransaction.amount),
       description: newTransaction.description,
       type: newTransaction.type,
-      date: new Date().toISOString(),
+      date: new Date(selectedYear, selectedMonth, new Date().getDate()).toISOString(),
     });
 
     setShowAddModal(false);
     setNewTransaction({ amount: "", description: "", category_id: "", type: "expense" });
   };
 
-  const recentTransactions = transactions.slice(0, 5);
+  const handleEditTransaction = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingTransaction || !editingTransaction.category_id) return;
+
+    await updateTransaction(editingTransaction.id, {
+      amount: Number(editingTransaction.amount),
+      description: editingTransaction.description,
+      category_id: editingTransaction.category_id,
+      type: editingTransaction.type,
+      date: new Date(selectedYear, selectedMonth, new Date().getDate()).toISOString(),
+    });
+
+    setShowEditModal(false);
+    setEditingTransaction(null);
+  };
+
+  const handleDeleteTransaction = async (id: string) => {
+    if (confirm("Tens a certeza que queres eliminar esta transação?")) {
+      await deleteTransaction(id);
+    }
+  };
+
+  const openEditModal = (transaction: any) => {
+    setEditingTransaction({
+      ...transaction,
+      amount: transaction.amount.toString(),
+    });
+    setShowEditModal(true);
+  };
+
+  const changeMonth = (delta: number) => {
+    let newMonth = selectedMonth + delta;
+    let newYear = selectedYear;
+    
+    if (newMonth < 0) {
+      newMonth = 11;
+      newYear--;
+    } else if (newMonth > 11) {
+      newMonth = 0;
+      newYear++;
+    }
+    
+    setSelectedMonth(newMonth);
+    setSelectedYear(newYear);
+  };
 
   return (
     <div className="min-h-screen bg-slate-900 text-white">
       <header className="bg-slate-800/50 backdrop-blur-xl border-b border-slate-700/50 sticky top-0 z-10">
-        <div className="max-w-md mx-auto px-4 py-4 flex justify-between items-center">
-          <h1 className="text-xl font-bold">Family Finance</h1>
+        <div className="max-w-md mx-auto px-4 py-4">
+          <h1 className="text-xl font-bold text-center">Family Finance</h1>
+          
+          <div className="flex items-center justify-center gap-2 mt-3">
+            <button onClick={() => changeMonth(-1)} className="p-1 hover:bg-slate-700 rounded">
+              <ChevronLeft className="w-5 h-5" />
+            </button>
+            <span className="font-medium min-w-[140px] text-center">
+              {MONTHS[selectedMonth]} {selectedYear}
+            </span>
+            <button onClick={() => changeMonth(1)} className="p-1 hover:bg-slate-700 rounded">
+              <ChevronRight className="w-5 h-5" />
+            </button>
+          </div>
         </div>
       </header>
 
@@ -159,20 +218,28 @@ export default function DashboardContent() {
         )}
 
         <div className="bg-slate-800/50 rounded-2xl p-4">
-          <h2 className="font-semibold mb-4">Transações recentes</h2>
-          {recentTransactions.length === 0 ? (
-            <p className="text-slate-400 text-center py-4">Sem transações ainda</p>
+          <h2 className="font-semibold mb-4">Transações</h2>
+          {filteredTransactions.length === 0 ? (
+            <p className="text-slate-400 text-center py-4">Sem transações neste mês</p>
           ) : (
-            <div className="space-y-3">
-              {recentTransactions.map((t) => (
+            <div className="space-y-2">
+              {filteredTransactions.map((t) => (
                 <div key={t.id} className="flex justify-between items-center py-2 border-b border-slate-700/50 last:border-0">
-                  <div>
+                  <div className="flex-1">
                     <p className="font-medium">{t.description || t.category?.name}</p>
                     <p className="text-xs text-slate-400">{new Date(t.date).toLocaleDateString("pt-PT")}</p>
                   </div>
-                  <span className={t.type === "income" ? "text-green-400" : "text-red-400"}>
-                    {t.type === "income" ? "+" : "-"}{Number(t.amount).toFixed(2)}€
-                  </span>
+                  <div className="flex items-center gap-2">
+                    <span className={t.type === "income" ? "text-green-400" : "text-red-400"}>
+                      {t.type === "income" ? "+" : "-"}{Number(t.amount).toFixed(2)}€
+                    </span>
+                    <button onClick={() => openEditModal(t)} className="p-1 text-slate-400 hover:text-blue-400">
+                      <Edit2 className="w-4 h-4" />
+                    </button>
+                    <button onClick={() => handleDeleteTransaction(t.id)} className="p-1 text-slate-400 hover:text-red-400">
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
                 </div>
               ))}
             </div>
@@ -263,6 +330,89 @@ export default function DashboardContent() {
                   className="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg"
                 >
                   Guardar
+                </button>
+              </form>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {showEditModal && editingTransaction && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-end"
+            onClick={() => setShowEditModal(false)}
+          >
+            <motion.div
+              initial={{ y: "100%" }}
+              animate={{ y: 0 }}
+              exit={{ y: "100%" }}
+              className="w-full bg-slate-800 rounded-t-2xl p-6"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex justify-between items-center mb-6">
+                <h2 className="text-xl font-bold">Editar Transação</h2>
+                <button onClick={() => setShowEditModal(false)} className="p-2 hover:bg-slate-700 rounded-lg">
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              <form onSubmit={handleEditTransaction} className="space-y-4">
+                <div className="flex gap-2 mb-4">
+                  <button
+                    type="button"
+                    onClick={() => setEditingTransaction({ ...editingTransaction, type: "expense" })}
+                    className={`flex-1 py-2 rounded-lg font-medium ${editingTransaction.type === "expense" ? "bg-red-500 text-white" : "bg-slate-700 text-slate-300"}`}
+                  >
+                    Despesa
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setEditingTransaction({ ...editingTransaction, type: "income" })}
+                    className={`flex-1 py-2 rounded-lg font-medium ${editingTransaction.type === "income" ? "bg-green-500 text-white" : "bg-slate-700 text-slate-300"}`}
+                  >
+                    Receita
+                  </button>
+                </div>
+
+                <input
+                  type="number"
+                  step="0.01"
+                  placeholder="Valor (€)"
+                  value={editingTransaction.amount}
+                  onChange={(e) => setEditingTransaction({ ...editingTransaction, amount: e.target.value })}
+                  className="w-full p-3 bg-slate-700 border border-slate-600 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  required
+                />
+
+                <input
+                  type="text"
+                  placeholder="Descrição (opcional)"
+                  value={editingTransaction.description}
+                  onChange={(e) => setEditingTransaction({ ...editingTransaction, description: e.target.value })}
+                  className="w-full p-3 bg-slate-700 border border-slate-600 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+
+                <select
+                  value={editingTransaction.category_id}
+                  onChange={(e) => setEditingTransaction({ ...editingTransaction, category_id: e.target.value })}
+                  className="w-full p-3 bg-slate-700 border border-slate-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  required
+                >
+                  <option value="">Selecionar categoria</option>
+                  {categories.map((cat) => (
+                    <option key={cat.id} value={cat.id}>{cat.name}</option>
+                  ))}
+                </select>
+
+                <button
+                  type="submit"
+                  className="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg"
+                >
+                  Guardar Alterações
                 </button>
               </form>
             </motion.div>
