@@ -165,14 +165,14 @@ export default function SettingsPage() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-end"
+            className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex md:items-center justify-center"
             onClick={() => { setShowCategoryModal(false); setEditingCategory(null); }}
           >
             <motion.div
               initial={{ y: "100%" }}
               animate={{ y: 0 }}
               exit={{ y: "100%" }}
-              className="w-full bg-slate-800 rounded-t-2xl p-6 max-h-[90vh] overflow-y-auto"
+              className="w-full md:w-auto md:max-w-md bg-slate-800 rounded-t-2xl md:rounded-2xl p-6 max-h-[90vh] overflow-y-auto"
               onClick={(e) => e.stopPropagation()}
             >
               <div className="flex justify-between items-center mb-6">
@@ -238,14 +238,14 @@ export default function SettingsPage() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-end"
+            className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex md:items-center justify-center"
             onClick={() => setShowGoalModal(false)}
           >
             <motion.div
               initial={{ y: "100%" }}
               animate={{ y: 0 }}
               exit={{ y: "100%" }}
-              className="w-full bg-slate-800 rounded-t-2xl p-6"
+              className="w-full md:w-auto md:max-w-md bg-slate-800 rounded-t-2xl md:rounded-2xl p-6"
               onClick={(e) => e.stopPropagation()}
             >
               <div className="flex justify-between items-center mb-6">
