@@ -1,16 +1,30 @@
 "use client";
 
-import dynamic from "next/dynamic";
+import { useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { createClient } from "@/lib/supabase";
 
-const AuthCallbackPage = dynamic(() => import("./AuthCallbackClient"), {
-  ssr: false,
-  loading: () => (
+export default function AuthCallbackClient() {
+  const router = useRouter();
+  const supabase = createClient();
+
+  useEffect(() => {
+    const handleAuthCallback = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      if (session) {
+        router.push("/dashboard");
+      } else {
+        router.push("/login");
+      }
+    };
+
+    handleAuthCallback();
+  }, [supabase, router]);
+
+  return (
     <div className="min-h-screen flex items-center justify-center bg-slate-900">
       <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500" />
     </div>
-  ),
-});
-
-export default function Page() {
-  return <AuthCallbackPage />;
+  );
 }
