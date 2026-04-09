@@ -63,12 +63,14 @@ export default function MobileDashboard() {
 
   const handleAddTransaction = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newTransaction.category_id || !newTransaction.amount) return;
+    if (!newTransaction.category_id) return;
+    const amount = Number(newTransaction.amount);
+    if (!amount || amount <= 0) return;
     await addTransaction({
       user_id: "demo-user",
       category_id: newTransaction.category_id,
-      amount: Number(newTransaction.amount),
-      description: newTransaction.description || "",
+      amount,
+      description: newTransaction.description?.trim() || "",
       type: newTransaction.type,
       date: new Date(selectedYear, selectedMonth, new Date().getDate()).toISOString(),
     });
@@ -87,10 +89,12 @@ export default function MobileDashboard() {
   const handleUpdateTransaction = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!editingTransaction) return;
+    const amount = Number(editingTransaction.amount);
+    if (!amount || amount <= 0) return;
     await updateTransaction(editingTransaction.id, {
-      amount: Number(editingTransaction.amount),
+      amount,
       category_id: editingTransaction.category_id,
-      description: editingTransaction.description || "",
+      description: editingTransaction.description?.trim() || "",
       type: editingTransaction.type,
     });
     setEditingTransaction(null);

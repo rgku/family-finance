@@ -19,10 +19,13 @@ export default function GoalsPage() {
 
   const handleAddGoal = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!newGoal.name.trim()) return;
+    const amount = Number(newGoal.target_amount);
+    if (!amount || amount <= 0) return;
     await addGoal({
       family_id: "demo",
-      name: newGoal.name,
-      target_amount: Number(newGoal.target_amount),
+      name: newGoal.name.trim(),
+      target_amount: amount,
       deadline: newGoal.deadline || null,
     });
     setShowModal(false);
@@ -31,6 +34,8 @@ export default function GoalsPage() {
 
   const handleContribute = async () => {
     if (!contributingGoal || !contributionAmount) return;
+    const amount = Number(contributionAmount);
+    if (!amount || amount <= 0) return;
     
     const goal = goals.find((g) => g.id === contributingGoal);
     if (!goal) return;

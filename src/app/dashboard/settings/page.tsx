@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useStore } from "@/store/useStore";
-import { X, Plus, Edit2, Trash2, Palette, ArrowLeft } from "lucide-react";
+import { X, Plus, Edit2, Trash2, ArrowLeft } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import Link from "next/link";
 
@@ -47,12 +47,15 @@ export default function SettingsPage() {
 
   const handleAddCategory = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!newCategory.name.trim()) return;
+    const budget = newCategory.budget_limit ? Number(newCategory.budget_limit) : null;
+    if (budget !== null && budget < 0) return;
     await addCategory({
       family_id: "demo",
-      name: newCategory.name,
+      name: newCategory.name.trim(),
       color: newCategory.color,
       icon: newCategory.icon,
-      budget_limit: newCategory.budget_limit ? Number(newCategory.budget_limit) : null,
+      budget_limit: budget,
     });
     setShowCategoryModal(false);
     setNewCategory({ name: "", color: "#10B981", icon: "folder", budget_limit: "" });
@@ -60,12 +63,14 @@ export default function SettingsPage() {
 
   const handleUpdateCategory = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!editingCategory) return;
+    if (!editingCategory || !editingCategory.name.trim()) return;
+    const budget = editingCategory.budget_limit ? Number(editingCategory.budget_limit) : null;
+    if (budget !== null && budget < 0) return;
     await updateCategory(editingCategory.id, {
-      name: editingCategory.name,
+      name: editingCategory.name.trim(),
       color: editingCategory.color,
       icon: editingCategory.icon,
-      budget_limit: editingCategory.budget_limit ? Number(editingCategory.budget_limit) : null,
+      budget_limit: budget,
     });
     setEditingCategory(null);
     setShowCategoryModal(false);
@@ -79,10 +84,13 @@ export default function SettingsPage() {
 
   const handleAddGoal = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!newGoal.name.trim()) return;
+    const amount = Number(newGoal.target_amount);
+    if (!amount || amount <= 0) return;
     await addGoal({
       family_id: "demo",
-      name: newGoal.name,
-      target_amount: Number(newGoal.target_amount),
+      name: newGoal.name.trim(),
+      target_amount: amount,
       deadline: newGoal.deadline || null,
     });
     setShowGoalModal(false);
