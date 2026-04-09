@@ -160,9 +160,15 @@ export default function SettingsPage() {
                   </p>
                 </div>
                 <div className="flex gap-1">
-                  <div className="w-16 h-2 bg-slate-600 rounded-full overflow-hidden">
-                    <div className="h-full bg-purple-500 rounded-full" style={{ width: `${Math.min((Number(goal.current_amount) / Number(goal.target_amount)) * 100, 100)}%` }} />
-                  </div>
+                  {(() => {
+                    const targetAmount = Number(goal.target_amount);
+                    const progress = targetAmount > 0 ? Number(goal.current_amount) / targetAmount : 0;
+                    return (
+                      <div className="w-16 h-2 bg-slate-600 rounded-full overflow-hidden">
+                        <div className="h-full bg-purple-500 rounded-full" style={{ width: `${Math.min(progress * 100, 100)}%` }} />
+                      </div>
+                    );
+                  })()}
                   <button onClick={() => handleDeleteGoal(goal.id)} className="p-2 hover:bg-slate-600 rounded-lg">
                     <Trash2 className="w-4 h-4 text-red-400" />
                   </button>

@@ -86,7 +86,8 @@ export default function GoalsPage() {
           </div>
         ) : (
           goals.map((goal) => {
-            const progress = Number(goal.current_amount) / Number(goal.target_amount);
+            const targetAmount = Number(goal.target_amount);
+            const progress = targetAmount > 0 ? Number(goal.current_amount) / targetAmount : 0;
             const isCompleted = progress >= 1;
             
             return (

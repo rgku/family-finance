@@ -1,12 +1,11 @@
 import { create } from "zustand";
 import { createClient } from "@/lib/supabase";
-import type { Transaction, Category, Goal, User } from "@/types";
+import type { Transaction, Category, Goal } from "@/types";
 
 interface AppState {
   transactions: Transaction[];
   categories: Category[];
   goals: Goal[];
-  familyMembers: User[];
   loading: boolean;
   error: string | null;
   isDemoMode: boolean;
@@ -14,7 +13,6 @@ interface AppState {
   fetchTransactions: () => Promise<void>;
   fetchCategories: () => Promise<void>;
   fetchGoals: () => Promise<void>;
-  fetchFamilyMembers: () => Promise<void>;
   
   addTransaction: (transaction: Omit<Transaction, "id" | "created_at">) => Promise<void>;
   updateTransaction: (id: string, updates: Partial<Transaction>) => Promise<void>;
@@ -92,7 +90,6 @@ export const useStore = create<AppState>((set, get) => {
     transactions: loadFromLocalStorage("ff_transactions", demoTransactions),
     categories: loadFromLocalStorage("ff_categories", demoCategories),
     goals: loadFromLocalStorage("ff_goals", demoGoals),
-    familyMembers: [],
     loading: false,
     error: null,
     isDemoMode: true,
@@ -155,28 +152,6 @@ export const useStore = create<AppState>((set, get) => {
     } catch {
       const cached = loadFromLocalStorage("ff_goals", demoGoals);
       set({ goals: cached });
-    }
-  },
-
-  fetchFamilyMembers: async () => {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
-
-    const { data: userData } = await supabase
-      .from("users")
-      .select("family_id")
-      .eq("id", user.id)
-      .single();
-
-    if (!userData) return;
-
-    const { data } = await supabase
-      .from("users")
-      .select("*")
-      .eq("family_id", userData.family_id);
-
-    if (data) {
-      set({ familyMembers: data });
     }
   },
 
@@ -339,7 +314,11 @@ export const useStore = create<AppState>((set, get) => {
       return;
     }
 
-    await supabase.from("goals").delete().eq("id", id);
+    const { error } = await supabase.from("goals").delete().eq("id", id);
+    if (error) {
+      setError("Erro ao eliminar meta: " + error.message);
+      return;
+    }
     get().fetchGoals();
   },
 

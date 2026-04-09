@@ -252,7 +252,8 @@ export default function DesktopDashboard({ isMobile }: DesktopDashboardProps) {
               </div>
               <div className="space-y-4">
                 {goals.slice(0, 3).map((goal) => {
-                  const progress = Number(goal.current_amount) / Number(goal.target_amount);
+                  const targetAmount = Number(goal.target_amount);
+                  const progress = targetAmount > 0 ? Number(goal.current_amount) / targetAmount : 0;
                   return (
                     <div key={goal.id}>
                       <div className="flex justify-between text-sm mb-1">
@@ -343,7 +344,8 @@ export default function DesktopDashboard({ isMobile }: DesktopDashboardProps) {
             </div>
             <div className="grid grid-cols-2 gap-4">
               {goals.map((goal) => {
-                const progress = Number(goal.current_amount) / Number(goal.target_amount);
+                const targetAmount = Number(goal.target_amount);
+                const progress = targetAmount > 0 ? Number(goal.current_amount) / targetAmount : 0;
                 return (
                   <div key={goal.id} className="bg-slate-700/50 rounded-xl p-4">
                     <div className="flex justify-between items-start mb-2">

@@ -225,17 +225,21 @@ export default function MobileDashboard() {
                   <Link href="/dashboard/goals" className="text-blue-400 text-sm">Ver todas</Link>
                 </div>
                 <div className="space-y-2">
-                  {goals.slice(0, 2).map((goal) => (
+                  {goals.slice(0, 2).map((goal) => {
+                    const targetAmount = Number(goal.target_amount);
+                    const progress = targetAmount > 0 ? Number(goal.current_amount) / targetAmount : 0;
+                    return (
                     <div key={goal.id}>
                       <div className="flex justify-between text-sm mb-1">
                         <span>{goal.name}</span>
                         <span className="text-slate-400">{Number(goal.current_amount).toFixed(0)}€ / {Number(goal.target_amount).toFixed(0)}€</span>
                       </div>
                       <div className="h-2 bg-slate-700 rounded-full overflow-hidden">
-                        <div className="h-full bg-purple-500 rounded-full" style={{ width: `${Math.min((Number(goal.current_amount) / Number(goal.target_amount)) * 100, 100)}%` }} />
+                        <div className="h-full bg-purple-500 rounded-full" style={{ width: `${Math.min(progress * 100, 100)}%` }} />
                       </div>
                     </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </div>
             )}
@@ -350,7 +354,8 @@ export default function MobileDashboard() {
             ) : (
               <div className="space-y-3">
                 {goals.map((goal) => {
-                  const progress = Number(goal.current_amount) / Number(goal.target_amount);
+                  const targetAmount = Number(goal.target_amount);
+                  const progress = targetAmount > 0 ? Number(goal.current_amount) / targetAmount : 0;
                   const isCompleted = progress >= 1;
                   return (
                     <div key={goal.id} className={`bg-slate-800/50 rounded-2xl p-4 ${isCompleted ? "border-2 border-green-500" : ""}`}>
