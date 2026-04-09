@@ -1,7 +1,10 @@
 "use client";
 
+// TODO: Implement authentication flow when ready for production
+// Currently not used - app runs in demo mode with localStorage
+
 import { createContext, useContext, useEffect, useState, ReactNode } from "react";
-import { User } from "@supabase/supabase-js";
+import { User, SupabaseClient } from "@supabase/supabase-js";
 
 interface AuthContextType {
   user: User | null;
@@ -14,7 +17,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
-  const [supabase, setSupabase] = useState<any>(null);
+  const [supabase, setSupabase] = useState<SupabaseClient | null>(null);
 
   useEffect(() => {
     import("@/lib/supabase").then(({ createClient }) => {

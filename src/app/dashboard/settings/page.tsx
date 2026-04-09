@@ -5,23 +5,40 @@ import { useStore } from "@/store/useStore";
 import { X, Plus, Edit2, Trash2, Palette, ArrowLeft } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-
-const ICONS = ["utensils", "car", "home", "heart", "film", "shopping-bag", "banknote", "more-horizontal", "zap", "book", "gift", "phone"];
 
 const COLORS_PALETTE = [
   "#10B981", "#3B82F6", "#8B5CF6", "#EF4444", "#F59E0B", "#EC4899", "#22C55E", "#6B7280",
   "#14B8A6", "#6366F1", "#F97316", "#84CC16"
 ];
 
+interface CategoryFormData {
+  id: string;
+  name: string;
+  color: string;
+  icon: string;
+  budget_limit: string;
+}
+
+interface NewCategoryFormData {
+  name: string;
+  color: string;
+  icon: string;
+  budget_limit: string;
+}
+
+interface GoalFormData {
+  name: string;
+  target_amount: string;
+  deadline: string;
+}
+
 export default function SettingsPage() {
   const { categories, fetchCategories, addCategory, updateCategory, deleteCategory, goals, fetchGoals, addGoal, deleteGoal } = useStore();
   const [showCategoryModal, setShowCategoryModal] = useState(false);
   const [showGoalModal, setShowGoalModal] = useState(false);
-  const [editingCategory, setEditingCategory] = useState<any>(null);
-  const [newCategory, setNewCategory] = useState({ name: "", color: "#10B981", icon: "folder", budget_limit: "" });
-  const [newGoal, setNewGoal] = useState({ name: "", target_amount: "", deadline: "" });
-  const router = useRouter();
+  const [editingCategory, setEditingCategory] = useState<CategoryFormData | null>(null);
+  const [newCategory, setNewCategory] = useState<NewCategoryFormData>({ name: "", color: "#10B981", icon: "folder", budget_limit: "" });
+  const [newGoal, setNewGoal] = useState<GoalFormData>({ name: "", target_amount: "", deadline: "" });
 
   useEffect(() => {
     fetchCategories();

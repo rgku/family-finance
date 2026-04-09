@@ -50,6 +50,8 @@ const demoTransactions: Transaction[] = [
   { id: "3", user_id: "demo", category_id: "7", amount: 1500.00, description: "Salário", date: new Date().toISOString(), type: "income", created_at: "" },
 ];
 
+const STORAGE_VERSION = 1;
+
 const demoGoals: Goal[] = [
   { id: "1", family_id: "demo", name: "Férias", target_amount: 2000, current_amount: 500, deadline: new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString(), created_at: "" },
   { id: "2", family_id: "demo", name: "Fundo de Emergência", target_amount: 5000, current_amount: 1500, deadline: null, created_at: "" },
@@ -58,6 +60,12 @@ const demoGoals: Goal[] = [
 function loadFromLocalStorage<T>(key: string, fallback: T): T {
   if (typeof window === "undefined") return fallback;
   try {
+    const version = localStorage.getItem("ff_version");
+    if (version !== STORAGE_VERSION.toString()) {
+      localStorage.clear();
+      localStorage.setItem("ff_version", STORAGE_VERSION.toString());
+      return fallback;
+    }
     const stored = localStorage.getItem(key);
     return stored ? JSON.parse(stored) : fallback;
   } catch {
@@ -74,14 +82,20 @@ function saveToLocalStorage<T>(key: string, data: T): void {
   }
 }
 
-export const useStore = create<AppState>((set, get) => ({
-  transactions: loadFromLocalStorage("ff_transactions", demoTransactions),
-  categories: loadFromLocalStorage("ff_categories", demoCategories),
-  goals: loadFromLocalStorage("ff_goals", demoGoals),
-  familyMembers: [],
-  loading: false,
-  error: null,
-  isDemoMode: true,
+export const useStore = create<AppState>((set, get) => {
+  const setError = (message: string) => {
+    set({ error: message });
+    setTimeout(() => set({ error: null }), 5000);
+  };
+
+  return {
+    transactions: loadFromLocalStorage("ff_transactions", demoTransactions),
+    categories: loadFromLocalStorage("ff_categories", demoCategories),
+    goals: loadFromLocalStorage("ff_goals", demoGoals),
+    familyMembers: [],
+    loading: false,
+    error: null,
+    isDemoMode: true,
 
   fetchTransactions: async () => {
     set({ loading: true });
@@ -178,9 +192,11 @@ export const useStore = create<AppState>((set, get) => ({
     }
 
     const { error } = await supabase.from("transactions").insert([transaction]);
-    if (!error) {
-      get().fetchTransactions();
+    if (error) {
+      setError("Erro ao adicionar transação: " + error.message);
+      return;
     }
+    get().fetchTransactions();
   },
 
   updateTransaction: async (id, updates) => {
@@ -195,7 +211,11 @@ export const useStore = create<AppState>((set, get) => ({
       return;
     }
 
-    await supabase.from("transactions").update(updates).eq("id", id);
+    const { error } = await supabase.from("transactions").update(updates).eq("id", id);
+    if (error) {
+      setError("Erro ao atualizar transação: " + error.message);
+      return;
+    }
     get().fetchTransactions();
   },
 
@@ -209,7 +229,11 @@ export const useStore = create<AppState>((set, get) => ({
       return;
     }
 
-    await supabase.from("transactions").delete().eq("id", id);
+    const { error } = await supabase.from("transactions").delete().eq("id", id);
+    if (error) {
+      setError("Erro ao eliminar transação: " + error.message);
+      return;
+    }
     get().fetchTransactions();
   },
 
@@ -224,7 +248,11 @@ export const useStore = create<AppState>((set, get) => ({
       return;
     }
 
-    await supabase.from("categories").insert([category]);
+    const { error } = await supabase.from("categories").insert([category]);
+    if (error) {
+      setError("Erro ao adicionar categoria: " + error.message);
+      return;
+    }
     get().fetchCategories();
   },
 
@@ -238,7 +266,11 @@ export const useStore = create<AppState>((set, get) => ({
       return;
     }
 
-    await supabase.from("categories").update(updates).eq("id", id);
+    const { error } = await supabase.from("categories").update(updates).eq("id", id);
+    if (error) {
+      setError("Erro ao atualizar categoria: " + error.message);
+      return;
+    }
     get().fetchCategories();
   },
 
@@ -252,7 +284,11 @@ export const useStore = create<AppState>((set, get) => ({
       return;
     }
 
-    await supabase.from("categories").delete().eq("id", id);
+    const { error } = await supabase.from("categories").delete().eq("id", id);
+    if (error) {
+      setError("Erro ao eliminar categoria: " + error.message);
+      return;
+    }
     get().fetchCategories();
   },
 
@@ -267,7 +303,11 @@ export const useStore = create<AppState>((set, get) => ({
       return;
     }
 
-    await supabase.from("goals").insert([goal]);
+    const { error } = await supabase.from("goals").insert([goal]);
+    if (error) {
+      setError("Erro ao adicionar meta: " + error.message);
+      return;
+    }
     get().fetchGoals();
   },
 
@@ -281,7 +321,11 @@ export const useStore = create<AppState>((set, get) => ({
       return;
     }
 
-    await supabase.from("goals").update({ current_amount: currentAmount }).eq("id", id);
+    const { error } = await supabase.from("goals").update({ current_amount: currentAmount }).eq("id", id);
+    if (error) {
+      setError("Erro ao atualizar meta: " + error.message);
+      return;
+    }
     get().fetchGoals();
   },
 
@@ -317,4 +361,5 @@ export const useStore = create<AppState>((set, get) => ({
       supabase.removeChannel(channel);
     };
   },
-}));
+};
+});

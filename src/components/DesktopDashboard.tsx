@@ -6,7 +6,15 @@ import { Plus, TrendingUp, TrendingDown, Target, Download, Settings, Home, Credi
 import { PieChart as RechartsPie, Pie, Cell, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip } from "recharts";
 import { motion, AnimatePresence } from "framer-motion";
 import Link from "next/link";
-import type { TransactionType } from "@/types";
+import type { Transaction, TransactionType } from "@/types";
+
+interface TransactionFormData {
+  id: string;
+  amount: string;
+  category_id: string;
+  type: TransactionType;
+  description: string;
+}
 
 const COLORS = ["#10B981", "#3B82F6", "#8B5CF6", "#EF4444", "#F59E0B", "#EC4899", "#22C55E", "#6B7280"];
 const MONTHS = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
@@ -24,7 +32,7 @@ export default function DesktopDashboard({ isMobile }: DesktopDashboardProps) {
   const [newTransaction, setNewTransaction] = useState({ amount: "", category_id: "", type: "expense" as TransactionType, description: "" });
   const [showSuccess, setShowSuccess] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
-  const [editingTransaction, setEditingTransaction] = useState<any>(null);
+  const [editingTransaction, setEditingTransaction] = useState<TransactionFormData | null>(null);
 
   useEffect(() => {
     fetchTransactions();
@@ -313,10 +321,10 @@ export default function DesktopDashboard({ isMobile }: DesktopDashboardProps) {
                       <span className={`text-lg font-bold ${t.type === "income" ? "text-green-400" : "text-red-400"}`}>
                         {t.type === "income" ? "+" : "-"}{Number(t.amount).toFixed(2)}€
                       </span>
-                      <button onClick={() => setEditingTransaction({ ...t, amount: t.amount.toString() })} className="p-1 hover:bg-slate-700 rounded">
+                      <button onClick={() => setEditingTransaction({ ...t, amount: t.amount.toString() })} className="p-1 hover:bg-slate-700 rounded" aria-label="Editar transação">
                         <Edit2 className="w-4 h-4 text-slate-400" />
                       </button>
-                      <button onClick={() => handleDeleteTransaction(t.id)} className="p-1 hover:bg-slate-700 rounded">
+                      <button onClick={() => handleDeleteTransaction(t.id)} className="p-1 hover:bg-slate-700 rounded" aria-label="Eliminar transação">
                         <Trash2 className="w-4 h-4 text-red-400" />
                       </button>
                     </div>
